@@ -4,7 +4,7 @@ BepInEx plugin for replacing dialogue fonts in NekoNyan's Aokana. Tested on `1.2
 
 Intented for replacing their use of faux italics with a real copy of italics, but can be used to replace the dialogue font with whatever font you want.
 
-Currently just replaces the 1st font (NotoSansCJK-Medium) with SourceSans3-Medium[Italic], (which I believe is what the latin glyphs are based on?), swapping in other fonts is possible however.
+Currently just replaces the 1st font (NotoSansCJK-Medium) with SourceSans3-Medium[Italic], (which I believe is what the latin glyphs are based on?) when using English, however swapping in other fonts is possible.
 
 ## Building
 
