@@ -1,0 +1,26 @@
+ManifestFileVersion: 0
+CRC: 4024957296
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: c9d59ba70f103f4bd9501d0318a1ef43
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 1bcc5f9e243cc455e0349e1b68032dba
+HashAppended: 0
+ClassTypes:
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 28
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+- Class: 114
+  Script: {fileID: 11500000, guid: 71c1514a6bd24e1e882cebbe1904ce04, type: 3}
+- Class: 115
+  Script: {instanceID: 0}
+Assets:
+- Assets/Fonts/SourceSans3/SourceSans3-Medium SDF.asset
+- Assets/Fonts/SourceSans3/SourceSans3-Medium SDF Preset0.mat
+- Assets/Fonts/SourceSans3/SourceSans3-Medium SDF Preset1.mat
+Dependencies: []
