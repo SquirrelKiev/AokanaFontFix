@@ -35,6 +35,6 @@ Tweak accordingly for your font of course. Can always check it against the text 
 
 After that, you can now add a new entry to Fonts, set index to whichever font you want to replace (index matches to the number in the settings menu, plus one.), and assign Font, Preset 0, and Preset 1 accordingly.
 
-Finally, export the font bundle via `Tools > Export Font Asset Bundle...`, and copy it to your config directory.
+Finally, export the font bundle via `Tools > Export Font Asset Bundle...`, copy it to your config directory, and update `moe.enonibobble.aokanafontfix.cfg` accordingly.
 
 You should now be able to load up Aokana, switch to the font in settings, and see your font!
