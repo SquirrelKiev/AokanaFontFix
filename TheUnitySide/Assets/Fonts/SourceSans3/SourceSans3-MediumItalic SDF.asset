@@ -18,13 +18,13 @@ MonoBehaviour:
   m_fontInfo:
     Name: Source Sans 3
     PointSize: 142
-    Scale: 1.12
+    Scale: 1.1
     CharacterCount: 126
-    LineHeight: 202.1875
+    LineHeight: 205.2909
     Baseline: 0
-    Ascender: 145.4375
+    Ascender: 149.7455
     CapHeight: 93.0625
-    Descender: -56.8125
+    Descender: -41.30909
     CenterLine: 0
     SuperscriptOffset: 145.4375
     SubscriptOffset: -10.650001
@@ -1229,7 +1229,7 @@ MonoBehaviour:
   - regularTypeface: {fileID: 0}
     italicTypeface: {fileID: 0}
   normalStyle: 0
-  normalSpacingOffset: 0
+  normalSpacingOffset: -2.656463
   boldStyle: 0.75
   boldSpacing: 7
   italicStyle: 35
