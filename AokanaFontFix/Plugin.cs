@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.Mono;
 using HarmonyLib;
@@ -10,25 +9,24 @@ using UnityEngine;
 
 namespace AokanaFontFix;
 
+// "Class Plugin has BepInPlugin attribute but does not inherit from BaseUnityPlugin" - you're just wrong lol
+#pragma warning disable BepInEx002
+
 [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
 [BepInProcess("Aokana.exe")]
 public class Plugin : BaseUnityPlugin
 {
-    // terrible day to be dependency injection
-    private static ManualLogSource logger;
-    internal static new ManualLogSource Logger => logger;
+    public static Plugin Instance { get; private set; }
 
-    private static AssetBundle bundle;
+    internal new ManualLogSource Logger { get; private set; }
 
-    private static Dictionary<int, FontReplacement> fonts;
-    public static Dictionary<int, FontReplacement> Fonts => fonts;
+    private AssetBundle bundle;
 
-    private static TMP_FontAsset cachedBacklogFont = null;
-    private static Material cachedBacklogFontMaterial = null;
-    public static TMP_FontAsset CachedBacklogFont => cachedBacklogFont;
-    public static Material CachedBacklogFontMaterial => cachedBacklogFontMaterial;
+    private Dictionary<int, FontReplacement> fonts;
+    public TMP_FontAsset CachedBacklogFont { get; private set; }
+    public Material CachedBacklogFontMaterial { get; private set; }
 
-    private static readonly Dictionary<string, EngineMain.Language> LanguageCodes =
+    private readonly Dictionary<string, EngineMain.Language> languageCodes =
         new(System.StringComparer.OrdinalIgnoreCase)
         {
             { "en", EngineMain.Language.en },
@@ -37,11 +35,13 @@ public class Plugin : BaseUnityPlugin
             { "tc", EngineMain.Language.tc },
         };
 
-    private static readonly Dictionary<int, HashSet<EngineMain.Language>> SupportedFontLanguages = [];
+    private readonly Dictionary<int, HashSet<EngineMain.Language>> supportedFontLanguages = [];
 
     public void Awake()
     {
-        logger = base.Logger;
+        Logger = base.Logger;
+
+        Instance = this;
 
         if (!TryLoadBundle())
         {
@@ -53,12 +53,12 @@ public class Plugin : BaseUnityPlugin
         HarmonyPatch();
     }
 
-    private static void LoadFonts()
+    private void LoadFonts()
     {
         var assets = bundle.GetAllAssetNames().Where(x => x.StartsWith("font")).Select(x => int.Parse(x.Substring(4))).ToList();
 
         fonts = new Dictionary<int, FontReplacement>(assets.Count);
-        foreach (var assetIndex in assets)
+        foreach (int assetIndex in assets)
         {
             var fontAssetId = $"font{assetIndex}";
             var preset0AssetId = $"material{assetIndex}-preset0";
@@ -70,10 +70,10 @@ public class Plugin : BaseUnityPlugin
 
             if (fontAsset == null || preset0Asset == null || preset1Asset == null)
             {
-                logger.LogError($"font {assetIndex} is broken. " +
-                    $"{fontAssetId} == null == {fontAsset == null}, " +
-                    $"{preset0AssetId} == null == {preset0Asset == null}, " +
-                    $"{preset1AssetId} == null == {preset1Asset == null}");
+                Logger.LogError($"font {assetIndex} is broken. " +
+                                $"{fontAssetId} == null == {fontAsset == null}, " +
+                                $"{preset0AssetId} == null == {preset0Asset == null}, " +
+                                $"{preset1AssetId} == null == {preset1Asset == null}");
                 continue;
             }
 
@@ -84,9 +84,9 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
-    private static bool TryLoadBundle()
+    private bool TryLoadBundle()
     {
-        var bundlePath = System.IO.Path.Combine(Paths.ConfigPath, $"{MyPluginInfo.PLUGIN_GUID}.assetbundle");
+        string bundlePath = System.IO.Path.Combine(Paths.ConfigPath, $"{MyPluginInfo.PLUGIN_GUID}.assetbundle");
 
         if (!System.IO.File.Exists(bundlePath))
         {
@@ -122,7 +122,7 @@ public class Plugin : BaseUnityPlugin
             var setting = Config.Bind("Fonts",
                 key,
                 id == 0 ? "en" : "",
-                $"Comma-separated list of languages this font supports. Options are {LanguageCodes.Select(x => x.Key).Join()}");
+                $"Comma-separated list of languages this font supports. Options are {languageCodes.Select(x => x.Key).Join()}");
 
             var languages = new HashSet<EngineMain.Language>();
 
@@ -135,7 +135,7 @@ public class Plugin : BaseUnityPlugin
                     continue;
                 }
 
-                if (LanguageCodes.TryGetValue(code, out var language))
+                if (languageCodes.TryGetValue(code, out var language))
                 {
                     languages.Add(language);
                 }
@@ -145,29 +145,24 @@ public class Plugin : BaseUnityPlugin
                 }
             }
 
-            SupportedFontLanguages[id] = languages;
+            supportedFontLanguages[id] = languages;
         }
     }
 
-    public static void CacheExistingBacklogFont(TMP_FontAsset font, Material sharedMaterial)
+    public void CacheExistingBacklogFont(TMP_FontAsset font, Material sharedMaterial)
     {
-        cachedBacklogFont = font;
-        cachedBacklogFontMaterial = sharedMaterial;
+        CachedBacklogFont = font;
+        CachedBacklogFontMaterial = sharedMaterial;
     }
 
-    public static bool TryGetFont(int id, EngineMain.Language language, out FontReplacement font)
+    public bool TryGetFont(int id, EngineMain.Language language, out FontReplacement font)
     {
         font = null;
 
-        return SupportedFontLanguages.TryGetValue(id, out var languages)
-            && languages.Contains(language)
-            && Fonts.TryGetValue(id, out font);
+        return supportedFontLanguages.TryGetValue(id, out var languages)
+               && languages.Contains(language)
+               && fonts.TryGetValue(id, out font);
     }
-
-    //public void OnDestroy()
-    //{
-    //    bundle.Unload(true);
-    //}
 }
 
 [HarmonyPatch(typeof(UIAdv), nameof(UIAdv.ChangeFont))]
@@ -175,14 +170,14 @@ public static class ChangeFontPatch
 {
     public static bool Prefix(int id, UIAdv __instance)
     {
-        if (!Plugin.TryGetFont(id, EngineMain.lang, out var font))
+        if (!Plugin.Instance.TryGetFont(id, EngineMain.lang, out var font))
         {
             return true;
         }
 
         __instance.advtext.font = font.Font;
         __instance.nametext.font = font.Font;
-        Plugin.Logger.LogInfo($"Patched font {id} to {font.Font.name}");
+        Plugin.Instance.Logger.LogInfo($"Patched font {id} to {font.Font.name}");
         __instance.AdvTextShadow_Update();
 
         return false;
@@ -195,14 +190,14 @@ public static class AdvTextShadowUpdatePatch
     public static bool Prefix(UIAdv __instance, EngineMain ___engine)
     {
         var text = __instance.advtext;
-        if (!Plugin.TryGetFont(___engine.prefs.font.value, EngineMain.lang, out var font))
+        if (!Plugin.Instance.TryGetFont(___engine.prefs.font.value, EngineMain.lang, out var font))
         {
             return true;
         }
 
-        Material material = ___engine.prefs.fontShadow.value ? font.Preset0 : font.Preset1;
+        var material = ___engine.prefs.fontShadow.value ? font.Preset0 : font.Preset1;
         text.fontMaterial = material;
-        Plugin.Logger.LogInfo($"Patched font {___engine.prefs.font.value} material to {material.name}");
+        Plugin.Instance.Logger.LogInfo($"Patched font {___engine.prefs.font.value} material to {material.name}");
         return false;
     }
 }
@@ -217,12 +212,14 @@ public static class KerningFixPatch
     }
 }
 
-
 [HarmonyPatch(typeof(UIBacklog), nameof(UIBacklog.ShowBacklog))]
 public static class ShowBacklogPatch
 {
-    private static readonly System.Reflection.FieldInfo MessageTextField = AccessTools.Field(AccessTools.Field(typeof(UIBacklog), "msgframe").FieldType.GetElementType(), "msgtx");
-    private static readonly System.Reflection.FieldInfo NameTextField = AccessTools.Field(AccessTools.Field(typeof(UIBacklog), "msgframe").FieldType.GetElementType(), "nametx");
+    private static readonly System.Reflection.FieldInfo MessageTextField =
+        AccessTools.Field(AccessTools.Field(typeof(UIBacklog), "msgframe").FieldType.GetElementType(), "msgtx");
+
+    private static readonly System.Reflection.FieldInfo NameTextField =
+        AccessTools.Field(AccessTools.Field(typeof(UIBacklog), "msgframe").FieldType.GetElementType(), "nametx");
 
     public static void Prefix(UIBacklog __instance, EngineMain ___engine, System.Array ___msgframe)
     {
@@ -233,24 +230,24 @@ public static class ShowBacklogPatch
 
         TMP_FontAsset fontAsset;
         Material fontMaterial;
-        if (Plugin.TryGetFont(___engine.prefs.font.value, EngineMain.lang, out var font))
+        if (Plugin.Instance.TryGetFont(___engine.prefs.font.value, EngineMain.lang, out var font))
         {
             fontAsset = font.Font;
             fontMaterial = font.Preset0;
         }
         else
         {
-            fontAsset = Plugin.CachedBacklogFont;
-            fontMaterial = Plugin.CachedBacklogFontMaterial;
+            fontAsset = Plugin.Instance.CachedBacklogFont;
+            fontMaterial = Plugin.Instance.CachedBacklogFontMaterial;
         }
 
         foreach (object frame in ___msgframe)
         {
             if (MessageTextField.GetValue(frame) is TextMeshProUGUI messageText)
             {
-                if (Plugin.CachedBacklogFont == null || Plugin.CachedBacklogFontMaterial == null)
+                if (Plugin.Instance.CachedBacklogFont == null || Plugin.Instance.CachedBacklogFontMaterial == null)
                 {
-                    Plugin.CacheExistingBacklogFont(messageText.font, messageText.fontSharedMaterial);
+                    Plugin.Instance.CacheExistingBacklogFont(messageText.font, messageText.fontSharedMaterial);
                 }
 
                 if (fontAsset == null || fontMaterial == null)
@@ -261,6 +258,7 @@ public static class ShowBacklogPatch
                 messageText.font = fontAsset;
                 messageText.fontSharedMaterial = fontMaterial;
             }
+
             if (NameTextField.GetValue(frame) is TextMeshProUGUI nameText)
             {
                 if (fontAsset == null || fontMaterial == null)
@@ -275,18 +273,9 @@ public static class ShowBacklogPatch
     }
 }
 
-public class FontReplacement
+public class FontReplacement(TMP_FontAsset font, Material preset0, Material preset1)
 {
-    public TMP_FontAsset Font { get; }
-    public Material Preset0 { get; }
-    public Material Preset1 { get; }
-
-    public FontReplacement(TMP_FontAsset font, Material preset0, Material preset1)
-    {
-        Font = font;
-        Preset0 = preset0;
-        Preset1 = preset1;
-    }
-
-    public Material GetMaterial(bool shadowEnabled) => shadowEnabled ? Preset0 : Preset1;
+    public TMP_FontAsset Font { get; } = font;
+    public Material Preset0 { get; } = preset0;
+    public Material Preset1 { get; } = preset1;
 }
